@@ -2,17 +2,17 @@
 
 Eine kostenlose, weltweite Baum-Community: Baumkarte, Baumprofile, Fotos, Likes, Kommentare, Benutzerkonten.
 
-**Status: lokaler Prototyp / Entwicklungsbranch. Nicht öffentlich veröffentlicht.**
+**Status: isoliertes Supabase-Backend eingerichtet, Entwicklungsbranch. Nicht öffentlich veröffentlicht.**
 
 ## Demo lokal ansehen
 
 1. Dieses Repository herunterladen.
 2. Mit `python3 -m http.server 8080` im Repositoryverzeichnis starten.
-3. `http://localhost:8080` öffnen. Ohne Backend erscheinen drei ausdrücklich als Beispiele markierte Einträge.
+3. `http://localhost:8080` öffnen. Da das Backend verbunden ist, werden anfangs noch keine Baumbeiträge angezeigt.
 
 Keine npm-Installation nötig. Die Kartenbibliothek wird per jsDelivr und bei aktiver Backend-Konfiguration die Supabase-Bibliothek per esm.sh geladen. Internetverbindung nötig.
 
-## Echtes Backend anschließen
+## Backend (eingerichtet am 25.10.2026)
 
 **Separates Supabase-Projekt verwenden. Niemals die Datenbank von MyGardenAtlas benutzen.**
 
@@ -31,7 +31,7 @@ Keine npm-Installation nötig. Die Kartenbibliothek wird per jsDelivr und bei ak
 - Baumbeitrag mit optional bis zu fünf Fotos (Browser-Komprimierung auf JPEG)
 - GPS-Übernahme auf Knopfdruck, ungefähre oder exakte Koordinaten
 - Likes und Kommentare, Eigentümer-Schutz per Row-Level Security
-- Mobile-first Layout und Demo-Modus ohne Serverzugang
+- Mobile-first Layout und Demo-Modus bei auskommentierter Backend-Konfiguration
 - Private Trennung der App von MyGardenAtlas
 
 ## Betriebskosten und Sicherheit
