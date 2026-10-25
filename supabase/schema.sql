@@ -97,6 +97,9 @@ create policy "delete own comment" on public.comments for delete to authenticate
   using ((select auth.uid()) = user_id);
 
 grant usage on schema public to anon,authenticated;
+-- Standardmäßige weitgehende Berechtigungen von Supabase explizit minimieren.
+revoke all privileges on public.profiles,public.trees,public.tree_photos,public.likes,public.comments
+  from anon,authenticated;
 grant select on public.profiles,public.trees,public.tree_photos,public.likes,public.comments to anon,authenticated;
 grant insert,update on public.profiles to authenticated;
 grant insert,update on public.trees to authenticated;
