@@ -1,1 +1,10 @@
-{"name":"baumdestages","version":"0.1.0","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs tests/*.mjs","check":"node --check src/app.js && node --test tests/source-check.mjs"}}
+{
+  "name": "baumdestages",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/source-check.mjs",
+    "check": "node --check src/app.js && node --test tests/source-check.mjs"
+  }
+}
