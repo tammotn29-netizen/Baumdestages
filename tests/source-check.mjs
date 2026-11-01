@@ -7,6 +7,8 @@ const schema=readFileSync(new URL('../supabase/schema.sql',import.meta.url),'utf
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const upgrade=readFileSync(new URL('../supabase/upgrade_v02.sql',import.meta.url),'utf8');
 const deleteAccount=readFileSync(new URL('../supabase/functions/delete-account/index.ts',import.meta.url),'utf8');
+const manifest=JSON.parse(readFileSync(new URL('../manifest.webmanifest',import.meta.url),'utf8'));
+const serviceWorker=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 
 test('HTML contains entrypoint and mobile viewport',()=>{
   assert.match(html,/src\/app\.js/);
@@ -58,4 +60,14 @@ test('password reset remains bound to the requesting account',()=>{
   assert.match(app,/resetPasswordForEmail\(email/);
   assert.match(app,/auth\.updateUser\(\{password\}\)/);
   assert.match(app,/PASSWORD_RECOVERY/);
+});
+
+test('installable standalone PWA has raster icons and safe offline shell',()=>{
+  assert.equal(manifest.display,'standalone');
+  assert.ok(manifest.icons.some(i=>i.sizes==='192x192'));
+  assert.ok(manifest.icons.some(i=>i.sizes==='512x512'));
+  assert.match(html,/rel="manifest"/);
+  assert.match(app,/serviceWorker\.register/);
+  assert.match(serviceWorker,/url\.origin!==self\.location\.origin/);
+  assert.doesNotMatch(serviceWorker,/\/rest\/v1|\/auth\/v1|storage\/v1/);
 });
