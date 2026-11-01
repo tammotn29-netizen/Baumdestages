@@ -189,15 +189,16 @@ async function init(){
     if(configured){
       const module=await import('https://esm.sh/@supabase/supabase-js@2.76.1?bundle');
       state.sb=module.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
-      const {data:{session},error}=await state.sb.auth.getSession();
-      if(error)throw error;
-      state.user=session?.user||null;
-      if(state.user)await refreshProfile();
+      // Subscribe before getSession: recovery links can emit PASSWORD_RECOVERY during SDK initialization.
       state.sb.auth.onAuthStateChange((event,session)=>{
         if(event==='PASSWORD_RECOVERY'){state.authMode='recovery';state.authOpen=true;setTimeout(render,0);}
         const newId=session?.user?.id || null;
         if(newId!==state.user?.id){state.user=session?.user||null;setTimeout(async()=>{try{await refreshProfile();render();}catch(e){toast(e.message)}},0);}
       });
+      const {data:{session},error}=await state.sb.auth.getSession();
+      if(error)throw error;
+      state.user=session?.user||null;
+      if(state.user)await refreshProfile();
     }
     await loadTrees();
   }catch(e){state.error=e.message;toast('Startfehler: '+e.message);}
