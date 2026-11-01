@@ -53,3 +53,9 @@ test('account deletion function authenticates bearer JWT and deletes photos firs
   assert.doesNotMatch(deleteAccount,/user_id\s*:\s*body/);
   assert.doesNotMatch(app,/SUPABASE_SERVICE_ROLE_KEY|sb_secret_/);
 });
+
+test('password reset remains bound to the requesting account',()=>{
+  assert.match(app,/resetPasswordForEmail\(email/);
+  assert.match(app,/auth\.updateUser\(\{password\}\)/);
+  assert.match(app,/PASSWORD_RECOVERY/);
+});
