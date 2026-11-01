@@ -1,4 +1,25 @@
-# 🌳 BaumDesTages — v0.1 (Entwicklungsstand)
+# 🌳 BaumDesTages — Entwicklung v0.2
+
+## Entwicklung v0.2 (1. November 2026)
+Die Version v0.2 wird im Branch `develop/v0.2-community-safety` entwickelt; `main` und die produktive Website bleiben unverändert.
+
+**Neu implementiert**
+- Reale, täglich bestimmte Auswahl „Baum des Tages“ aus den veröffentlichten Bäumen
+- Fotogalerie für bis zu fünf Fotos je Baum
+- Nachladen weiterer Baumbeiträge (150 pro Seite)
+- Eigene Bäume inkl. öffentlicher Fotos löschen; eigene Kommentare löschen
+- Baumbeiträge und Kommentare melden; Meldungen sind durch RLS nur für den Melder und privilegierte Backend-Verwaltung lesbar
+- Passwortzurücksetzung per E-Mail (Supabase Auth Redirect-Konfiguration noch testen)
+- Selbstbedienungs-Kontolöschung via geschützter Supabase Edge Function `delete-account`; die Funktion entfernt Fotos und danach das Auth-Konto mit abhängigen Daten
+- Installierbare Android-/Desktop-PWA mit 192/512-PNG-Symbolen; ausschließlich öffentliche App-Dateien werden offline gecacht
+- GitHub Actions: `npm run check` bei Push / Pull Request
+
+**Backend aktiv:** `supabase/upgrade_v02.sql` wurde ausschließlich im separaten Projekt BaumDesTages angewendet. Funktion `delete-account` mit `verify_jwt=true` bereitgestellt. Nicht auf MyGardenAtlas anwenden.
+
+**Teststand:** JavaScript-Syntax und statische Sicherheitstests über GitHub Actions erfolgreich. Datenbankberechtigungen/Policies und Supabase Security Advisors geprüft. **Keine** echten Zwei-Konten-, Browser-, Upload-, Lösch- oder Lasttests. Ein erfolgreicher statischer Test ist keine Freigabe für den öffentlichen Betrieb.
+
+**Offene Startvoraussetzungen:** Cloudflare R2 mit gesichertem Upload-Endpunkt und belastbaren Kontingenten, Bot-/Spam-Abwehr, durchführbarer Moderationsablauf, Impressum und Datenschutzhinweise mit verifizierten Angaben, datenschutzkonforme Kartenkacheln, E-Mail-Auth-Konfiguration, Mehrbenutzer-/E2E-Tests, betriebliche Überwachung und Backups. Bis dahin kein öffentliches Deployment und kein Merge nach `main`.
+
 
 Eine kostenlose, weltweite Baum-Community: Baumkarte, Baumprofile, Fotos, Likes, Kommentare, Benutzerkonten.
 
