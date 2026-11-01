@@ -125,11 +125,15 @@ function detailView(){
 }
 function authDialog(){
   if(!state.authOpen)return '';
-  return '<div class="overlay" id="auth-overlay"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title"><div class="dialog-top"><h2 id="auth-title">'+(state.authMode==='login'?'Willkommen zurück':'Konto erstellen')+'</h2><button class="ghost" id="close-auth" aria-label="Schließen">✕</button></div>'+
-  '<p class="muted small">BaumDesTages – kostenlos dabei sein.</p><form id="auth-form"><div class="field"><label for="email">E-Mail</label><input id="email" name="email" type="email" autocomplete="email" required></div>'+
-  '<div class="field"><label for="password">Passwort (mind. 8 Zeichen)</label><input id="password" name="password" type="password" minlength="8" required autocomplete="'+(state.authMode==='login'?'current-password':'new-password')+'"></div>'+
-  '<button class="btn" type="submit">'+(state.authMode==='login'?'Anmelden':'Kostenlos registrieren')+'</button></form>'+
-  '<p class="small"><button class="ghost" id="switch-auth">'+(state.authMode==='login'?'Noch kein Konto? Registrieren':'Bereits registriert? Anmelden')+'</button></p></div></div>';
+  const title={login:'Willkommen zurück',signup:'Konto erstellen',reset:'Passwort zurücksetzen',recovery:'Neues Passwort festlegen'}[state.authMode];
+  const action={login:'Anmelden',signup:'Kostenlos registrieren',reset:'Rücksetzlink anfordern',recovery:'Passwort speichern'}[state.authMode];
+  return '<div class="overlay" id="auth-overlay"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title"><div class="dialog-top"><h2 id="auth-title">'+title+'</h2><button class="ghost" id="close-auth" aria-label="Schließen">✕</button></div>'+
+    '<p class="muted small">BaumDesTages – kostenlos dabei sein.</p><form id="auth-form">'+
+    (state.authMode==='recovery'?'':'<div class="field"><label for="email">E-Mail</label><input id="email" name="email" type="email" autocomplete="email" required></div>')+
+    (state.authMode==='reset'?'':'<div class="field"><label for="password">'+(state.authMode==='recovery'?'Neues Passwort':'Passwort (mind. 8 Zeichen)')+'</label><input id="password" name="password" type="password" minlength="8" required autocomplete="'+(state.authMode==='login'?'current-password':'new-password')+'"></div>')+
+    '<button class="btn" type="submit">'+action+'</button></form>'+
+    '<p class="small"><button class="ghost" id="switch-auth">'+(state.authMode==='login'?'Noch kein Konto? Registrieren':'Zur Anmeldung')+'</button></p>'+
+    (state.authMode==='login'?'<p class="small"><button class="ghost" id="forgot-password">Passwort vergessen?</button></p>':'')+'</div></div>';
 }
 function reportDialog(){
   if(!state.reportTarget)return '';
@@ -189,7 +193,8 @@ async function init(){
       if(error)throw error;
       state.user=session?.user||null;
       if(state.user)await refreshProfile();
-      state.sb.auth.onAuthStateChange((_event,session)=>{
+      state.sb.auth.onAuthStateChange((event,session)=>{
+        if(event==='PASSWORD_RECOVERY'){state.authMode='recovery';state.authOpen=true;setTimeout(render,0);}
         const newId=session?.user?.id || null;
         if(newId!==state.user?.id){state.user=session?.user||null;setTimeout(async()=>{try{await refreshProfile();render();}catch(e){toast(e.message)}},0);}
       });
@@ -266,12 +271,27 @@ async function submitTree(form){
 }
 async function submitAuth(form){
   if(!state.sb)return;
-  const fd=new FormData(form),email=String(fd.get('email')).trim(),password=String(fd.get('password'));
+  const fd=new FormData(form),email=String(fd.get('email')||'').trim(),password=String(fd.get('password')||'');
   try{
-    const response=state.authMode==='login'?await state.sb.auth.signInWithPassword({email,password}):await state.sb.auth.signUp({email,password});
+    let response;
+    if(state.authMode==='reset'){
+      response=await state.sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+      if(response.error)throw response.error;
+      state.authMode='login';state.authOpen=false;render();
+      toast('Falls das Konto existiert, erhältst du einen Rücksetzlink per E-Mail.');
+      return;
+    }
+    if(state.authMode==='recovery'){
+      response=await state.sb.auth.updateUser({password});
+      if(response.error)throw response.error;
+      state.authMode='login';state.authOpen=false;render();toast('Passwort aktualisiert.');
+      return;
+    }
+    response=state.authMode==='login'?await state.sb.auth.signInWithPassword({email,password}):await state.sb.auth.signUp({email,password});
     if(response.error)throw response.error;
+    const wasLogin=state.authMode==='login';
     state.authOpen=false;render();
-    toast(state.authMode==='login'?'Angemeldet.':'Registrierung gestartet. Prüfe gegebenenfalls dein E-Mail-Postfach.');
+    toast(wasLogin?'Angemeldet.':'Registrierung gestartet. Prüfe gegebenenfalls dein E-Mail-Postfach.');
   }catch(e){toast(e.message);}
 }
 async function submitProfile(form){
@@ -358,6 +378,7 @@ document.addEventListener('click',async event=>{
   if(button.id==='open-auth'){state.authOpen=true;render();}
   if(button.id==='close-auth'){state.authOpen=false;render();}
   if(button.id==='switch-auth'){state.authMode=state.authMode==='login'?'signup':'login';render();}
+  if(button.id==='forgot-password'){state.authMode='reset';render();}
   if(button.id==='logout'&&state.sb){const {error}=await state.sb.auth.signOut();if(error)toast(error.message);else{state.user=null;state.profile=null;navTo('discover');toast('Abgemeldet.');}}
   if(button.id==='like')toggleLike();
   if(button.id==='get-location')navigator.geolocation?.getCurrentPosition(
