@@ -11,6 +11,7 @@ Die Version v0.2 wird im Branch `develop/v0.2-community-safety` entwickelt; `mai
 - Baumbeiträge und Kommentare melden; Meldungen sind durch RLS nur für den Melder und privilegierte Backend-Verwaltung lesbar
 - Passwortzurücksetzung per E-Mail (Supabase Auth Redirect-Konfiguration noch testen)
 - Selbstbedienungs-Kontolöschung via geschützter Supabase Edge Function `delete-account`; die Funktion entfernt Fotos und danach das Auth-Konto mit abhängigen Daten
+- Installierbare Android-/Desktop-PWA mit 192/512-PNG-Symbolen; ausschließlich öffentliche App-Dateien werden offline gecacht
 - GitHub Actions: `npm run check` bei Push / Pull Request
 
 **Backend aktiv:** `supabase/upgrade_v02.sql` wurde ausschließlich im separaten Projekt BaumDesTages angewendet. Funktion `delete-account` mit `verify_jwt=true` bereitgestellt. Nicht auf MyGardenAtlas anwenden.
