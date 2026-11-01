@@ -45,3 +45,8 @@ header{height:86px;display:flex;align-items:center;justify-content:space-between
 .my-tree .btn{padding:9px 13px}.account-danger{margin-top:32px;border-top:1px solid #e6d9d6;padding-top:20px}
 .account-danger h3{color:#813434}.mini-action{background:none;border:0;color:#576a5e;text-decoration:underline;font-size:12px;padding:8px 0}
 @media(max-width:420px){.my-tree .btn{font-size:12px}.my-tree span{flex-basis:100%}}
+
+.photo-stack{min-width:0}.photo-thumbs{display:flex;gap:8px;overflow-x:auto;margin-top:9px;padding:4px 2px}
+.photo-thumbs button{width:66px;height:66px;flex:none;overflow:hidden;border-radius:12px;border:3px solid transparent;padding:0;background:#e6e9df}
+.photo-thumbs button.active{border-color:#24563f}.photo-thumbs img{width:100%;height:100%;object-fit:cover}
+.more-area{text-align:center;padding:25px 0}
