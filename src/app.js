@@ -5,7 +5,7 @@ const state = {
   tab: 'discover', search: '', authMode: 'login', authOpen: false,
   trees: [], user: null, profile: null, sb: null, selected: null,
   comments: [], likes: [], myLike: false, loading: true, saving: false,
-  map: null, error: null, reportTarget: null
+  map: null, error: null, reportTarget: null, photoIndex: 0, hasMore: false, loadingMore: false
 };
 const $ = selector => document.querySelector(selector);
 const escapeHtml = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,6 +23,20 @@ function photoUrl(tree){
   if(!path || !state.sb)return '';
   const url=state.sb.storage.from('tree-photos').getPublicUrl(path).data.publicUrl;
   try{const parsed=new URL(url);return parsed.protocol==='https:'?url:'';}catch{return '';}
+}
+function photoUrls(tree){
+  if(!state.sb)return [];
+  return (tree.tree_photos||[]).map(p=>{
+    const url=state.sb.storage.from('tree-photos').getPublicUrl(p.storage_path).data.publicUrl;
+    try{return new URL(url).protocol==='https:'?url:null;}catch{return null;}
+  }).filter(Boolean);
+}
+function detailPhotoMarkup(tree){
+  const urls=photoUrls(tree);
+  const active=Math.min(state.photoIndex,Math.max(0,urls.length-1));
+  const url=urls[active];
+  return '<div class="photo-stack"><div class="detail-photo">'+(url?'<img loading="lazy" src="'+escapeHtml(url)+'" alt="Foto '+(active+1)+' von '+urls.length+': '+escapeHtml(tree.common_name)+'">':'<span aria-hidden="true">🌳</span>')+'</div>'+
+  (urls.length>1?'<div class="photo-thumbs" aria-label="Fotos wählen">'+urls.map((src,i)=>'<button data-photo-index="'+i+'" class="'+(i===active?'active':'')+'" aria-label="Foto '+(i+1)+' anzeigen" aria-pressed="'+(i===active)+'"><img src="'+escapeHtml(src)+'" alt=""></button>').join('')+'</div>':'')+'</div>';
 }
 function photoMarkup(tree,klass='tree-photo'){
   const url=photoUrl(tree);
@@ -57,7 +71,8 @@ function discover(){
    '<div class="hero-art"><div class="art-pill"><strong>🌳 Baum des Tages</strong>'+(featured?'<button class="feature-link" data-tree="'+escapeHtml(featured.id)+'">'+escapeHtml(featured.nickname||featured.common_name)+' ansehen</button>':'Deine nächste Entdeckung wartet')+'</div></div></section>'+
    (!configured?'<div class="notice warning">Vorschau-Modus: Die gezeigten Bäume sind ausdrücklich erfundene Beispiele. Anmeldung und Upload werden nach Einrichtung des eigenen Backends aktiv.</div>':'')+
    '<div class="section-header"><div><div class="eyebrow">Aus der Community</div><h2 class="section-title">Bäume entdecken</h2></div><input id="search" class="search" aria-label="Bäume suchen" placeholder="🔍 Baumart oder Stichwort suchen" value="'+escapeHtml(state.search)+'"></div>'+
-   (filtered.length?'<div class="cards">'+filtered.map(treeCard).join('')+'</div>':'<div class="empty"><b>Noch keine passenden Bäume.</b>Entdecke die Karte oder trage einen neuen Baum ein.</div>');
+   (filtered.length?'<div class="cards">'+filtered.map(treeCard).join('')+'</div>':'<div class="empty"><b>Noch keine passenden Bäume.</b>Entdecke die Karte oder trage einen neuen Baum ein.</div>')+
+   (configured&&state.hasMore?'<div class="more-area"><button class="btn outline" id="load-more" '+(state.loadingMore?'disabled':'')+'>Weitere Bäume laden</button></div>':'');
 }
 function mapView(){
   return '<section class="section-header"><div><div class="eyebrow">Unser Planet · Unsere Bäume</div><h1 class="section-title">Die Baumkarte</h1></div><button class="btn" data-tab="create">＋ Baum hinzufügen</button></section>'+
@@ -96,7 +111,7 @@ function detailView(){
   const t=state.trees.find(x=>x.id===state.selected);
   if(!t)return discover();
   return '<div class="section-header"><button class="btn secondary" id="back">← Zurück</button><span class="muted small">'+(configured?'Community-Beitrag':'Beispielbeitrag')+'</span></div>'+
-  '<section class="panel" style="max-width:100%;margin-top:0"><div class="detail-top">'+photoMarkup(t,'detail-photo')+
+  '<section class="panel" style="max-width:100%;margin-top:0"><div class="detail-top">'+detailPhotoMarkup(t)+
   '<div><div class="eyebrow">Baumporträt</div><h2>'+escapeHtml(t.nickname||t.common_name)+'</h2><p class="muted"><em>'+escapeHtml(t.species||'Art noch nicht bestimmt')+'</em></p>'+
   '<div class="data-pills"><span>🌳 '+escapeHtml(t.common_name)+'</span><span>📍 '+Number(t.latitude).toFixed(3)+'°, '+Number(t.longitude).toFixed(3)+'°</span></div>'+
   '<p>'+escapeHtml(t.description || 'Für diesen Baum wurde noch keine Geschichte hinterlegt.')+'</p>'+
@@ -147,11 +162,13 @@ function setupMap(){
   else if(markers.length===1)map.setView(markers[0].getLatLng(),10);
   setTimeout(()=>map.invalidateSize(),50);
 }
-async function loadTrees(){
-  if(!state.sb){state.trees=demoTrees;return;}
-  const {data,error}=await state.sb.from('trees').select('id,owner_id,common_name,species,nickname,description,latitude,longitude,created_at,profiles:owner_id(username,display_name),tree_photos(id,storage_path)').order('created_at',{ascending:false}).limit(150);
+async function loadTrees(append=false){
+  if(!state.sb){state.trees=demoTrees;state.hasMore=false;return;}
+  const pageSize=150,offset=append?state.trees.length:0;
+  const {data,error}=await state.sb.from('trees').select('id,owner_id,common_name,species,nickname,description,latitude,longitude,created_at,profiles:owner_id(username,display_name),tree_photos(id,storage_path)').order('created_at',{ascending:false}).range(offset,offset+pageSize-1);
   if(error)throw error;
-  state.trees=data||[];
+  state.trees=append?[...state.trees,...(data||[])]:data||[];
+  state.hasMore=(data||[]).length===pageSize;
 }
 async function refreshProfile(){
   if(!state.sb||!state.user){state.profile=null;return;}
@@ -182,6 +199,7 @@ async function init(){
   state.loading=false;render();
 }
 async function openTree(id){
+  state.photoIndex=0;
   state.selected=id;
   state.comments=[];state.likes=[];
   render();
@@ -328,6 +346,8 @@ document.addEventListener('click',async event=>{
   const tree=event.target.closest('[data-tree]');if(tree){openTree(tree.dataset.tree);return;}
   const button=event.target.closest('button');if(!button)return;
   if(button.id==='back'){state.selected=null;render();}
+  if(button.dataset.photoIndex!==undefined){state.photoIndex=Number(button.dataset.photoIndex)||0;render();}
+  if(button.id==='load-more'&&!state.loadingMore){state.loadingMore=true;try{await loadTrees(true);render();}catch(e){toast(e.message);}finally{state.loadingMore=false;}}
   if(button.dataset.deleteTree)await deleteTree(button.dataset.deleteTree);
   if(button.dataset.deleteComment)await deleteComment(button.dataset.deleteComment);
   if(button.dataset.reportTree){if(!state.user){state.authOpen=true;}else{state.reportTarget={tree_id:button.dataset.reportTree};}render();}
