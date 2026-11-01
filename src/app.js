@@ -398,3 +398,8 @@ document.addEventListener('submit',async e=>{
   catch(error){toast(error.message||'Ein Fehler ist aufgetreten.');}
 });
 init();
+
+// Offline availability is limited to the public app shell; cloud features require network access.
+if('serviceWorker' in navigator&&window.isSecureContext){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
