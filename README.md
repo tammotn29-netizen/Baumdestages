@@ -9,6 +9,7 @@ Die Version v0.2 wird im Branch `develop/v0.2-community-safety` entwickelt; `mai
 - Nachladen weiterer Baumbeiträge (150 pro Seite)
 - Eigene Bäume inkl. öffentlicher Fotos löschen; eigene Kommentare löschen
 - Baumbeiträge und Kommentare melden; Meldungen sind durch RLS nur für den Melder und privilegierte Backend-Verwaltung lesbar
+- Passwortzurücksetzung per E-Mail (Supabase Auth Redirect-Konfiguration noch testen)
 - Selbstbedienungs-Kontolöschung via geschützter Supabase Edge Function `delete-account`; die Funktion entfernt Fotos und danach das Auth-Konto mit abhängigen Daten
 - GitHub Actions: `npm run check` bei Push / Pull Request
 
