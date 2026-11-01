@@ -5,7 +5,7 @@ const state = {
   tab: 'discover', search: '', authMode: 'login', authOpen: false,
   trees: [], user: null, profile: null, sb: null, selected: null,
   comments: [], likes: [], myLike: false, loading: true, saving: false,
-  map: null, error: null
+  map: null, error: null, reportTarget: null
 };
 const $ = selector => document.querySelector(selector);
 const escapeHtml = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -41,13 +41,20 @@ function treeCard(tree){
   '<div class="tree-body"><span class="small muted">'+escapeHtml(tree.species||'Baumart unbekannt')+'</span><h3>'+escapeHtml(tree.nickname||tree.common_name)+'</h3>'+
   '<p>'+escapeHtml(shorten(tree.description||tree.common_name,95))+'</p><div class="card-meta"><span>📍 '+(Number.isFinite(+tree.latitude)? Number(tree.latitude).toFixed(2)+'°, ':'')+ (Number.isFinite(+tree.longitude)?Number(tree.longitude).toFixed(2)+'°':'')+'</span><span>von @'+escapeHtml(tree.profiles?.username||'Community')+'</span></div></div></button>';
 }
+function dailyTree(){
+  if(!state.trees.length)return null;
+  const day=new Date().toISOString().slice(0,10);
+  let hash=0;for(const ch of day)hash=(hash*31+ch.charCodeAt(0))>>>0;
+  return [...state.trees].sort((a,b)=>a.id.localeCompare(b.id))[hash%state.trees.length];
+}
 function discover(){
+  const featured=dailyTree();
   const filtered=state.trees.filter(t=>[t.common_name,t.species,t.nickname,t.description].join(' ').toLocaleLowerCase().includes(state.search.toLocaleLowerCase()));
   return '<section class="hero"><div><div class="eyebrow">Entdecken · Bewahren · Teilen</div>'+
    '<h1>Jeder Baum erzählt <em>eine Geschichte.</em></h1><p>Entdecke beeindruckende Bäume auf der ganzen Welt, teile deine Funde und werde Teil einer wachsenden Natur-Community.</p>'+
    '<div class="toolbar"><button class="btn" data-tab="map">🌍 Weltkarte entdecken</button><button class="btn secondary" data-tab="create">＋ Baum eintragen</button></div>'+
    '<div class="statbar"><div><b>'+state.trees.length+'</b><span>'+(configured?'Gefundene Bäume':'Beispielbäume')+'</span></div><div><b>🌿</b><span>Weltweite Community</span></div></div></div>'+
-   '<div class="hero-art" aria-hidden="true"><div class="art-pill"><strong>🌳 Baum des Tages</strong>Deine nächste Entdeckung wartet</div></div></section>'+
+   '<div class="hero-art"><div class="art-pill"><strong>🌳 Baum des Tages</strong>'+(featured?'<button class="feature-link" data-tree="'+escapeHtml(featured.id)+'">'+escapeHtml(featured.nickname||featured.common_name)+' ansehen</button>':'Deine nächste Entdeckung wartet')+'</div></div></section>'+
    (!configured?'<div class="notice warning">Vorschau-Modus: Die gezeigten Bäume sind ausdrücklich erfundene Beispiele. Anmeldung und Upload werden nach Einrichtung des eigenen Backends aktiv.</div>':'')+
    '<div class="section-header"><div><div class="eyebrow">Aus der Community</div><h2 class="section-title">Bäume entdecken</h2></div><input id="search" class="search" aria-label="Bäume suchen" placeholder="🔍 Baumart oder Stichwort suchen" value="'+escapeHtml(state.search)+'"></div>'+
    (filtered.length?'<div class="cards">'+filtered.map(treeCard).join('')+'</div>':'<div class="empty"><b>Noch keine passenden Bäume.</b>Entdecke die Karte oder trage einen neuen Baum ein.</div>');
@@ -81,7 +88,9 @@ function profileView(){
     '<form id="profile-form"><div class="form-grid"><div class="field"><label for="username">Benutzername</label><input id="username" name="username" minlength="3" maxlength="24" pattern="[a-z0-9_]+" value="'+escapeHtml(state.profile?.username||'')+'" required></div>'+
     '<div class="field"><label for="display-name">Anzeigename</label><input id="display-name" name="display_name" maxlength="80" value="'+escapeHtml(state.profile?.display_name||'')+'"></div>'+
     '<div class="field wide"><label for="bio">Über mich</label><textarea id="bio" name="bio" maxlength="500">'+escapeHtml(state.profile?.bio||'')+'</textarea></div></div>'+
-    '<div class="toolbar"><button class="btn" type="submit">Profil speichern</button><button type="button" class="btn outline" id="logout">Abmelden</button></div></form></section>';
+    '<div class="toolbar"><button class="btn" type="submit">Profil speichern</button><button type="button" class="btn outline" id="logout">Abmelden</button></div></form>'+ 
+    '<h3>Meine Bäume</h3>'+(state.trees.filter(t=>t.owner_id===state.user.id).length?'<div class="my-trees">'+state.trees.filter(t=>t.owner_id===state.user.id).map(t=>'<div class="my-tree"><span>'+escapeHtml(t.nickname||t.common_name)+'</span><button class="btn outline" data-tree="'+escapeHtml(t.id)+'">Ansehen</button><button class="btn danger" data-delete-tree="'+escapeHtml(t.id)+'">Löschen</button></div>').join('')+'</div>':'<p class="muted small">Noch keine eigenen Baumbeiträge in der aktuellen Übersicht.</p>')+
+    '<div class="account-danger"><h3>Konto und Daten</h3><p class="muted small">Alle eigenen Baumbeiträge, Fotos, Likes und Kommentare dauerhaft entfernen. Dieser Vorgang kann nicht rückgängig gemacht werden.</p><button type="button" class="btn danger" id="delete-account">Konto dauerhaft löschen</button></div></section>';
 }
 function detailView(){
   const t=state.trees.find(x=>x.id===state.selected);
@@ -93,9 +102,9 @@ function detailView(){
   '<p>'+escapeHtml(t.description || 'Für diesen Baum wurde noch keine Geschichte hinterlegt.')+'</p>'+
   '<p class="small muted">Veröffentlicht von @'+escapeHtml(t.profiles?.username||'Community')+'</p>'+
   '<div class="toolbar"><button id="like" class="btn secondary" '+(!state.user?'title="Zum Liken anmelden"':'')+'>♡ '+state.likes.length+' Gefällt mir</button>'+
-  '<button id="copy-location" class="btn outline">📍 Koordinaten kopieren</button></div></div></div>'+
+  '<button id="copy-location" class="btn outline">📍 Koordinaten kopieren</button>'+(state.user?.id===t.owner_id?'<button class="btn danger" data-delete-tree="'+escapeHtml(t.id)+'">Baum löschen</button>':(state.user?'<button class="btn outline" data-report-tree="'+escapeHtml(t.id)+'">Beitrag melden</button>':''))+'</div></div></div>'+
   '<div class="section-header"><h2 class="section-title">Kommentare</h2></div>'+
-  (state.comments.length?state.comments.map(c=>'<div class="comment"><b>@'+escapeHtml(c.profiles?.username||'Community')+'</b><p>'+escapeHtml(c.body)+'</p></div>').join(''):'<p class="muted">Noch keine Kommentare.</p>')+
+  (state.comments.length?state.comments.map(c=>'<div class="comment"><b>@'+escapeHtml(c.profiles?.username||'Community')+'</b><p>'+escapeHtml(c.body)+'</p>'+(state.user?(state.user.id===c.user_id?'<button class="mini-action" data-delete-comment="'+escapeHtml(c.id)+'">Kommentar löschen</button>':'<button class="mini-action" data-report-comment="'+escapeHtml(c.id)+'">Melden</button>'):'')+'</div>').join(''):'<p class="muted">Noch keine Kommentare.</p>')+
   (state.user?'<form id="comment-form"><div class="field"><label for="comment">Kommentar schreiben</label><textarea id="comment" name="body" maxlength="700" required></textarea></div><button class="btn" type="submit">Kommentieren</button></form>':'<p class="small muted">Zum Kommentieren bitte anmelden.</p>')+
   '</section>';
 }
@@ -107,11 +116,15 @@ function authDialog(){
   '<button class="btn" type="submit">'+(state.authMode==='login'?'Anmelden':'Kostenlos registrieren')+'</button></form>'+
   '<p class="small"><button class="ghost" id="switch-auth">'+(state.authMode==='login'?'Noch kein Konto? Registrieren':'Bereits registriert? Anmelden')+'</button></p></div></div>';
 }
+function reportDialog(){
+  if(!state.reportTarget)return '';
+  return '<div class="overlay" id="report-overlay"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="report-title"><div class="dialog-top"><h2 id="report-title">Inhalt melden</h2><button class="ghost" id="close-report" aria-label="Schließen">✕</button></div><p class="muted small">Deine Meldung ist nicht öffentlich sichtbar und wird zur Prüfung gespeichert.</p><form id="report-form"><div class="field"><label for="report-reason">Grund</label><select id="report-reason" name="reason" required><option value="spam">Spam</option><option value="privacy">Privatsphäre / Standort</option><option value="copyright">Urheberrecht / Foto</option><option value="abuse">Beleidigung / Missbrauch</option><option value="other">Anderer Grund</option></select></div><div class="field"><label for="report-details">Hinweise (optional)</label><textarea id="report-details" name="details" maxlength="500"></textarea></div><button class="btn" type="submit">Meldung senden</button></form></div></div>';
+}
 function render(){
   if(state.map){state.map.remove();state.map=null;}
   let content=state.selected?detailView():state.tab==='discover'?discover():state.tab==='map'?mapView():state.tab==='create'?createView():profileView();
   document.querySelector('#app').innerHTML='<div class="shell"><header><div class="brand"><span class="brand-icon">🌳</span>BaumDesTages</div>'+nav()+
-  '<button class="btn secondary" id="header-account">'+(state.user?'Mein Konto':'Anmelden')+'</button></header><main>'+content+'</main></div>'+bottomNav()+authDialog();
+  '<button class="btn secondary" id="header-account">'+(state.user?'Mein Konto':'Anmelden')+'</button></header><main>'+content+'</main></div>'+bottomNav()+authDialog()+reportDialog();
   if(!state.selected&&state.tab==='map')setTimeout(setupMap,0);
 }
 function setupMap(){
@@ -175,7 +188,7 @@ async function openTree(id){
   if(!state.sb)return;
   try{
     const [c,l]=await Promise.all([
-      state.sb.from('comments').select('id,body,created_at,profiles:user_id(username)').eq('tree_id',id).order('created_at',{ascending:false}).limit(50),
+      state.sb.from('comments').select('id,user_id,body,created_at,profiles:user_id(username)').eq('tree_id',id).order('created_at',{ascending:false}).limit(50),
       state.sb.from('likes').select('user_id').eq('tree_id',id).limit(10000)
     ]);
     if(c.error)throw c.error;if(l.error)throw l.error;
@@ -258,6 +271,50 @@ async function submitComment(form){
   if(error)return toast(error.message);
   await openTree(state.selected);toast('Kommentar veröffentlicht.');
 }
+async function deleteTree(id){
+  if(!state.sb||!state.user)return;
+  const t=state.trees.find(x=>x.id===id);
+  if(!t||t.owner_id!==state.user.id)return toast('Nur der Eigentümer kann diesen Baum löschen.');
+  if(!window.confirm('Baum "'+(t.nickname||t.common_name)+'" mit allen Fotos und Kommentaren dauerhaft löschen?'))return;
+  try{
+    const photos=await state.sb.from('tree_photos').select('storage_path').eq('tree_id',id);
+    if(photos.error)throw photos.error;
+    const paths=(photos.data||[]).map(p=>p.storage_path);
+    if(paths.length){const removal=await state.sb.storage.from('tree-photos').remove(paths);if(removal.error)throw removal.error;}
+    const deleted=await state.sb.from('trees').delete().eq('id',id).eq('owner_id',state.user.id).select('id');
+    if(deleted.error)throw deleted.error;
+    if(!deleted.data?.length)throw new Error('Beitrag konnte nicht gelöscht werden.');
+    state.selected=null;await loadTrees();render();toast('Baumbeitrag und Fotos gelöscht.');
+  }catch(e){toast('Löschen fehlgeschlagen: '+e.message);}
+}
+async function deleteComment(id){
+  if(!state.user||!state.sb||!state.comments.some(c=>c.id===id&&c.user_id===state.user.id))return;
+  if(!window.confirm('Eigenen Kommentar dauerhaft löschen?'))return;
+  const {error}=await state.sb.from('comments').delete().eq('id',id).eq('user_id',state.user.id);
+  if(error)return toast(error.message);
+  await openTree(state.selected);toast('Kommentar gelöscht.');
+}
+async function submitReport(form){
+  if(!state.user||!state.reportTarget)return;
+  const fd=new FormData(form);
+  const reason=String(fd.get('reason')),details=String(fd.get('details')||'').trim().slice(0,500);
+  if(!['spam','privacy','copyright','abuse','other'].includes(reason))return toast('Ungültiger Meldegrund.');
+  const {error}=await state.sb.from('reports').insert({reporter_id:state.user.id,...state.reportTarget,reason,details});
+  if(error){toast(error.code==='23505'?'Dieser Inhalt wurde von dir bereits gemeldet.':error.message);return;}
+  state.reportTarget=null;render();toast('Deine Meldung wurde gespeichert.');
+}
+async function deleteAccount(){
+  if(!state.user||!state.sb)return;
+  if(!window.confirm('Konto und ALLE veröffentlichten Inhalte dauerhaft löschen?'))return;
+  if(window.prompt('Zur Bestätigung LÖSCHEN eingeben:')!=='LÖSCHEN')return;
+  try{
+    const {error}=await state.sb.functions.invoke('delete-account',{body:{confirmation:'LÖSCHEN'}});
+    if(error)throw error;
+    await state.sb.auth.signOut();
+    state.user=null;state.profile=null;state.selected=null;state.trees=[];state.comments=[];state.likes=[];
+    await loadTrees();navTo('discover');toast('Dein Konto wurde gelöscht.');
+  }catch(e){toast('Kontolöschung fehlgeschlagen: '+e.message);}
+}
 async function toggleLike(){
   if(!state.user){state.authOpen=true;render();return;}
   const liked=state.likes.some(l=>l.user_id===state.user.id);
@@ -271,6 +328,12 @@ document.addEventListener('click',async event=>{
   const tree=event.target.closest('[data-tree]');if(tree){openTree(tree.dataset.tree);return;}
   const button=event.target.closest('button');if(!button)return;
   if(button.id==='back'){state.selected=null;render();}
+  if(button.dataset.deleteTree)await deleteTree(button.dataset.deleteTree);
+  if(button.dataset.deleteComment)await deleteComment(button.dataset.deleteComment);
+  if(button.dataset.reportTree){if(!state.user){state.authOpen=true;}else{state.reportTarget={tree_id:button.dataset.reportTree};}render();}
+  if(button.dataset.reportComment){if(!state.user){state.authOpen=true;}else{state.reportTarget={comment_id:button.dataset.reportComment};}render();}
+  if(button.id==='close-report'){state.reportTarget=null;render();}
+  if(button.id==='delete-account')await deleteAccount();
   if(button.id==='header-account'){if(state.user)navTo('profile');else{state.authOpen=true;render();}}
   if(button.id==='open-auth'){state.authOpen=true;render();}
   if(button.id==='close-auth'){state.authOpen=false;render();}
@@ -284,12 +347,13 @@ document.addEventListener('click',async event=>{
 });
 document.addEventListener('input',e=>{if(e.target.id==='search'){state.search=e.target.value;const field=document.activeElement;const caret=field.selectionStart;render();const newInput=$('#search');if(newInput){newInput.focus();newInput.setSelectionRange(caret,caret);}}});
 document.addEventListener('submit',async e=>{
-  if(!['tree-form','auth-form','profile-form','comment-form'].includes(e.target.id))return;
+  if(!['tree-form','auth-form','profile-form','comment-form','report-form'].includes(e.target.id))return;
   e.preventDefault();
   try{if(e.target.id==='tree-form')await submitTree(e.target);
       if(e.target.id==='auth-form')await submitAuth(e.target);
       if(e.target.id==='profile-form')await submitProfile(e.target);
-      if(e.target.id==='comment-form')await submitComment(e.target);}
+      if(e.target.id==='comment-form')await submitComment(e.target);
+      if(e.target.id==='report-form')await submitReport(e.target);}
   catch(error){toast(error.message||'Ein Fehler ist aufgetreten.');}
 });
 init();
